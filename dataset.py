@@ -36,7 +36,7 @@ for i in range(50):
         
     except Exception as e:
         print(str(e))
-        print(red(bold("Stop collecting data from github...")))
+        print("Stop collecting data from github...")
         time.sleep(120)
 
 print("Finish collecting data. Your new end time is : ", start_time)
