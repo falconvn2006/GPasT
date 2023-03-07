@@ -1,7 +1,7 @@
 from tokenizers import ByteLevelBPETokenizer
 from transformers import GPT2Config, GPT2LMHeadModel, GPT2Tokenizer
 
-TRAINED = False
+TRAINED = True
 data_paths = ["pascal_dataset_text_code.txt"]
 
 if not TRAINED:
@@ -17,12 +17,21 @@ if not TRAINED:
 
     tokenizer.save_model("tokenizer")
 
-inp = "writeln('Hello World'!);"
 
 tokenizer = GPT2Tokenizer.from_pretrained("tokenizer")
 
 tokenizer.add_special_tokens({
     "eos_token" : "</s>",
     "bos_token" : "<s>",
-    "" : ""
+    "unk_token" : "<unk>",
+    "pad_token" : "<pad>",
+    "mask_token" : "<mask>"
 })
+
+# Testing the Tokenizer
+#
+# inp = "writeln('Hello World'!);"
+# t = tokenizer.encode(inp)
+# print(t)
+# print(tokenizer.decode(t))
+#
