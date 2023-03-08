@@ -1,0 +1,1 @@
+totalAno:=totalAno+regM.monto;

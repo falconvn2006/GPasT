@@ -1,0 +1,65 @@
+unit UTypes;
+
+interface
+
+uses
+  System.Types;
+
+const
+  VER_SERVER_NT                      = DWORD($80000000);
+  {$EXTERNALSYM VER_SERVER_NT}
+  VER_WORKSTATION_NT                 = $40000000;
+  {$EXTERNALSYM VER_WORKSTATION_NT}
+  VER_SUITE_SMALLBUSINESS            = $00000001;
+  {$EXTERNALSYM VER_SUITE_SMALLBUSINESS}
+  VER_SUITE_ENTERPRISE               = $00000002;
+  {$EXTERNALSYM VER_SUITE_ENTERPRISE}
+  VER_SUITE_BACKOFFICE               = $00000004;
+  {$EXTERNALSYM VER_SUITE_BACKOFFICE}
+  VER_SUITE_COMMUNICATIONS           = $00000008;
+  {$EXTERNALSYM VER_SUITE_COMMUNICATIONS}
+  VER_SUITE_TERMINAL                 = $00000010;
+  {$EXTERNALSYM VER_SUITE_TERMINAL}
+  VER_SUITE_SMALLBUSINESS_RESTRICTED = $00000020;
+  {$EXTERNALSYM VER_SUITE_SMALLBUSINESS_RESTRICTED}
+  VER_SUITE_EMBEDDEDNT               = $00000040;
+  {$EXTERNALSYM VER_SUITE_EMBEDDEDNT}
+  VER_SUITE_DATACENTER               = $00000080;
+  {$EXTERNALSYM VER_SUITE_DATACENTER}
+  VER_SUITE_SINGLEUSERTS             = $00000100;
+  {$EXTERNALSYM VER_SUITE_SINGLEUSERTS}
+  VER_SUITE_PERSONAL                 = $00000200;
+  {$EXTERNALSYM VER_SUITE_PERSONAL}
+  VER_SUITE_BLADE                    = $00000400;
+  {$EXTERNALSYM VER_SUITE_BLADE}
+
+//
+// RtlVerifyVersionInfo() os product type values
+//
+
+  VER_NT_WORKSTATION       = $0000001;
+  {$EXTERNALSYM VER_NT_WORKSTATION}
+  VER_NT_DOMAIN_CONTROLLER = $0000002;
+  {$EXTERNALSYM VER_NT_DOMAIN_CONTROLLER}
+  VER_NT_SERVER            = $0000003;
+  {$EXTERNALSYM VER_NT_SERVER}
+
+type
+  TOSVERSIONINFOEX = record
+    dwOSVersionInfoSize: DWORD;
+    dwMajorVersion: DWORD;
+    dwMinorVersion: DWORD;
+    dwBuildNumber: DWORD;
+    dwPlatformId: DWORD;
+    szCSDVersion: array[0..127] of AnsiChar; { Maintenance string for PSS usage }
+    wServicePackMajor: WORD;
+    wServicePackMinor: WORD;
+    wSuiteMask: WORD;
+    wProductType: BYTE;
+    wReserved: BYTE;
+  end;
+
+implementation
+
+end.
+

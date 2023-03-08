@@ -1,0 +1,7 @@
+'This is a pascal string'
+''
+'a'
+'A tabulator character: '#9' is easy to embed'
+'the string starts here'#13#10'   and continues here'
+'the string starts here'#10'   and continues here'
+'the string starts here'#10'   and continues here'

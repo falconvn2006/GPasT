@@ -6,4 +6,10 @@ GPT for Pascal code generation :)
 // From HuggingFace
 tokenizers
 transformers 
+
+// Raw data collection
+pygithub
+
+// Other
+datasets
 ```

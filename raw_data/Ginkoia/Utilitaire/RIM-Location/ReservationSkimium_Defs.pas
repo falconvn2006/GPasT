@@ -1,0 +1,279 @@
+unit ReservationSkimium_Defs;
+interface
+
+  uses Classes, SysUtils,  IdMessage, IdAttachment,  IdText,
+       DateUtils, xml_unit, IcXmlParser, ulogfile, 
+       dmReservation, ReservationType_Defs, R2D2, uIMAP4, DB, Variants, ReservationResStr;
+
+const
+  CSKIMIUM    = 'RESERVATION SKIMIUM';
+  CSKMWORDDETECT = 'RESERVATION GINKOIA';
+
+  // Récupère les mails pour savoir s'il vont être traité ou non.
+  function GenerateSkmMailList(MaCentrale : TGENTYPEMAIL;MaCfg : TCFGMAIL) : Boolean;
+  // Vérifie que les mails sont bien valide.
+  procedure CheckSkmMail(MaCfg : TCFGMAIL);
+  // Fonction principale de traitement des mails
+  function ExecuteSkmDoTraitement(MaCentrale : TGENTYPEMAIL;MaCfg : TCFGMAIL) : Boolean;
+
+implementation
+Uses main ;
+
+
+function GenerateSkmMailList(MaCentrale : TGENTYPEMAIL;MaCfg : TCFGMAIL) : Boolean;    
+const
+  Retry = 3;
+var
+  Count : integer ; // pour tester les essais
+  Account : TAccount ;
+  IdPop  : Tpop3Client ;
+  IdMess : TIdMessage;
+  i, iNbMess, j : integer;
+  sIdMag,sIdResa : String;
+  sFileName : String;
+
+  // voir explication ci dessous sur les tests
+  TPListe, TPListe2:TStringList;
+  sRec:TSearchRec;
+  sIdNum: string;
+
+  IMAP4 : IMAP4Class;
+  lstRep : TStringList;
+begin
+  Result := False;
+  Dm_Reservation.MemD_Mail.Close;
+  Dm_Reservation.MemD_Mail.Open;
+
+  if MaCfg.PBT_ADRPRINC = '' then
+  begin
+    Fmain.ologfile.Addtext('Veuillez configurer la partie @mail de Skimium');
+    //InfoMessHP('Veuillez configurer la partie @mail de Skimium',True,0,0,'Erreur');
+      Fmain.Showmessagers('Veuillez configurer la partie @mail de Skimium', 'Erreur');
+    Exit;
+  end;
+
+  IMAP4 := IMAP4Class.Create(Macfg.PBT_SERVEUR,Macfg.PBT_ADRPRINC,Macfg.PBT_PASSW,Macfg.PBT_PORT,True);
+  IMAP4.PGStatus3D := Fmain.Gge_A;
+  lstRep := TStringList.Create;
+  Try
+
+    {$REGION 'Tentative de connexion}
+    Count := 0;
+    Repeat
+      try
+        Inc(Count) ;
+        IMAP4.Connect;    
+        Fmain.oLogfile.Addtext(Format(RS_CONNEXION_OK_LOG, [MaCentrale.MTY_NOM]));
+        break ;
+      Except on E:Exception do
+        begin
+          if Count = Retry then
+          begin
+            Fmain.Ferrorconnect := True ;
+            Fmain.oLogfile.Addtext(Format(RS_ERREUR_CONNEXION_LOG, [MaCentrale.MTY_NOM, Count, Retry, E.ClassName, E.Message]));
+            Fmain.ShowmessageRS(Format(RS_ERREUR_CONNEXION_DLG, [MaCentrale.MTY_NOM, E.ClassName, E.Message]), 'Erreur');
+            Exit;
+          end
+          else begin
+            Sleep(Dm_Reservation.DelaisEssais);
+          end;
+        end;
+      end;
+    Until Retry=Count;
+    {$ENDREGION}
+
+    // Récupéraiotn de la liste des magasins à traiter
+    With dm_reservation.Que_IdentMagExist do
+    begin
+      Close;
+      ParamCheck := True;
+      ParamByName('PMtyId').AsInteger := MaCfg.PBT_MTYID;
+      Open;
+
+      if (Recordcount > 0) then
+      begin
+        while not EOF do
+        begin
+          if ((MaCentrale.MTY_MULTI <> 0) and (dm_reservation.POSID = FieldByName('IDM_POSID').AsInteger)) Or
+             (MaCentrale.MTY_MULTI = 0) then
+          begin
+            lstRep.Text := StringReplace(Trim(FieldByName('IDM_PRESTA').AsString),';',#13#10,[rfReplaceAll]);
+            for i := 0 to lstRep.Count - 1 do
+            begin
+              Fmain.InitGauge(Format('%s %d sur %d : Code %d/%d'#13#10'Récupération des mails',[MaCentrale.MTY_NOM,RecNo,Recordcount,i + 1, lstRep.Count]),100);
+              // Positionnement dans le répertoire (On passe à la suite s'il n'existe pas
+              if not IMAP4.SelectMailBox('Reservation/' + Trim(lstRep[i])) then
+                Continue;
+
+              // Récupération des mails du répertoire
+              IMAP4.LoadAllMailBoxMsg;
+
+              Fmain.InitGauge(Format('%s %d sur %d : Code %d/%d'#13#10'Sauvegarde des mails',[MaCentrale.MTY_NOM,RecNo,Recordcount, i+1, lstRep.Count]),100);
+              for j := 0 to IMAP4.MsgList.Count - 1 do
+              begin
+                // On récupère un maximum d'information du mail + récupération de la pièce jointe
+                With Dm_Reservation,MemD_Mail do
+                begin
+                  // découpe le sujet pour récupèrer l'id magasin et le numéro de réservation
+                  With TStringList.Create do
+                  try
+                    Text    := StringReplace(Trim(IMAP4.MsgList[j].Subject),' ',#13#10,[rfReplaceAll]);
+                    // Après stringreplace on a dans la stringlist
+                    // 0- Reservation
+                    // 1- GINKOIA
+                    // 2- L'id Magasin
+                    // 3- NUMERO
+                    // 4- L'id Reservation
+                    sIdMag  := Strings[2];
+                    sIdResa := Strings[4];
+                  finally
+                    Free;
+                  end; // try
+
+                  // On va stocker les informations temporairement dans un TdxMemData pour la suite du traitement
+                  //sFilename := IdMess.MessageParts.Items[j].FileName ;
+                  //sFilename := GPATHMAILTMP + sFilename ;
+                  if R2D2.DecodeMessage(IMAP4.MsgList[j], GPATHMAILTMP, 1, sFileName) = True then
+                  Begin
+                    Append;
+                    FieldByName('MailId').AsInteger        := j + 1;
+                    FieldByName('MailSubject').AsString    := IMAP4.MsgList[j].Subject;
+                    FieldByName('MailAttachName').AsString := sFileName;
+                    FieldByName('MailIdMag').AsString      := sIdMag;
+                    FieldByName('MailIdResa').AsString     := sIdResa;
+                    FieldByName('MailDate').AsDateTime     := IMAP4.MsgList[j].Date;
+                    FieldByName('bTraiter').AsBoolean      := False;
+                    FieldByName('bArchive').AsBoolean      := False ;
+                    if Fmain.Falgol = False then
+                      FieldByName('bArchive').AsBoolean      :=  True; // on archive dans tous les cas   //(Abs(DaysBetween(Now,GetDateFromK(sIdResa))) >= MaCfg.PBT_ARCHIVAGE);
+                    FieldByName('bAnnulation').AsBoolean   := False;
+                    FieldByName('bVoucher').AsBoolean      := False;
+
+                    Try
+                      Post;
+                      // Sauvegarde de la pièce jointe;  sauveagrdé par R2D2;
+                      //TIdAttachment(IdMess.MessageParts.Items[j]).SaveToFile(GPATHMAILTMP + sFileName);
+                    Except on E:Exception do
+                      begin
+                      // A voir selon
+                      end;
+                    End; // try
+                  end; // if R2D2 ;
+                end; // with
+
+
+                Fmain.Gge_A.Progress := (j + 1) * 100 DIV (IMAP4.MsgList.Count);
+                FMain.Refresh;
+              end; // for j
+            end; // for i
+
+          end;
+          Next;
+        end;
+      end
+      else
+        exit; // pas de répertoire à traiter
+    end;
+    Result := True;
+  Finally
+    Fmain.ResetGauge ;
+    IMAP4.Free;
+    LstRep.Free;
+  End;
+
+end;
+
+procedure CheckSkmMail(MaCfg : TCFGMAIL);
+var
+  lst : TStringList;
+  MonXml : TmonXML;
+  nReservationXml : TIcXMLElement;
+  bAnnulation : Boolean;
+  iPosition : Integer;
+  sIdResa   : String;
+  BookM : TBookmark;
+begin
+  lst := TStringList.Create;
+  MonXml := TmonXML.Create;
+  With Dm_Reservation do
+  try
+    With MemD_Mail do
+    begin
+      First;
+      while not EOF do
+      begin
+        lst.LoadFromFile(GPATHMAILTMP + FieldByName('MailAttachName').AsString);
+        // On vérifie que le fichier possède au moins une des balises attendu
+        if Pos('</fiche>',lst.text) > 1 then
+        begin
+          // On charge le fichier pour vérifié si c'est une annulation
+          try
+            MonXml.loadfromstring(lst.text);
+            nReservationXml := MonXml.find('/fiche/reservation/dates_duree');
+            // si c'est une annulation on ne traitera pas le fichier
+            bAnnulation := (MonXml.ValueTag(nReservationXml,'annulation') = 'O');
+
+            // On met à jour le Dxmemdata.
+            if bAnnulation then
+            begin
+              // Si c'est une annulation
+              // est ce que la reservation existe encore ?
+              Edit;
+              if Dm_Reservation.IsReservationExist(FieldByName('MailIdResa').AsString) then
+              begin
+                FieldByName('bTraiter').AsBoolean    := Not bAnnulation;
+                FieldByName('bAnnulation').AsBoolean := bAnnulation;
+              end
+              else begin
+                FieldByName('bArchive').AsBoolean    := True;
+              end;
+              Post;
+
+              if bAnnulation and dm_reservation.ReservationInMemory(MemD_Mail, FieldByName('MailIdResa').AsString) then
+              begin
+                Edit;
+                FieldByName('bTraiter').AsBoolean    := False;
+                FieldByName('bArchive').AsBoolean    := False;
+                FieldByName('bAnnulation').AsBoolean := True;
+                Post;
+              end;
+
+             end // if
+            else begin
+              // On vérifie que la réservation n'a pas déjà été traité
+              if not Dm_Reservation.IsReservationExist(FieldByName('MailIdResa').AsString) then
+              begin
+                Edit;
+                FieldByName('bTraiter').AsBoolean    := True;
+                Post;
+              end;
+            end; // else
+          Except on E:Exception do
+            begin
+              Edit;
+              FieldByName('bTraiter').AsBoolean    := False;
+              Post;
+            end;
+          end; // try
+        end;
+        Next;
+      end; // while
+    end; // with
+  finally
+    lst.Free;
+    MonXml.Free;
+    lst := nil ;
+    MonXml := nil ;
+  end; // with / try
+end;
+
+function ExecuteSkmDoTraitement(MaCentrale : TGENTYPEMAIL;MaCfg : TCFGMAIL) : Boolean;
+begin
+  // Vérification que les mails sont bien valide
+  CheckSkmMail(MaCfg);
+
+  // Vérification de la partie OC des mails
+  Result := Dm_Reservation.CheckOC(MaCentrale);
+end;
+
+end.
