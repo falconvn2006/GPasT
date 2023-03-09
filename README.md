@@ -21,7 +21,7 @@ You can run it on [Google Colab](https://colab.research.google.com/github/buckda
 **For locally you have to run the script in this order** <br>
 (if you don't want to create a new dataset, or train a new tokenizer then you can skip 1,2,3,4.<br>
 After that you must go to the HuggingFace website and find my dataset [Falcon2006VN/pascal-code-generation-2mb]<br>
-then you can retrain the model the way you like by adjusting the train.py the use the run.py to run the model)<br><br>
+then you can retrain the model the way you like by adjusting the train.py then use the run.py to run the model)<br><br>
 1.raw_data.py<br>
 2.clean.py<br>
 3.preprocess.py<br>
