@@ -1,2 +1,0 @@
-
-    regM:empleados;

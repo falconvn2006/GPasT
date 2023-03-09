@@ -1,2 +1,0 @@
-
-    read(det[i],deta);
