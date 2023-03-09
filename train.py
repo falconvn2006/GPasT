@@ -3,22 +3,7 @@ from transformers import GPT2Config, GPT2LMHeadModel, GPT2Tokenizer, DataCollato
                             Trainer, TrainingArguments
 from datasets import load_dataset
 
-TRAINED = True
 data_paths = ["pascal_dataset_text_code.txt"]
-
-if not TRAINED:
-    tokenizer = ByteLevelBPETokenizer()
-
-    tokenizer.train(files=data_paths, vocab_size=52_000, min_frequency=2, special_tokens=[
-        "<S>",
-        "<pad>",
-        "</s>",
-        "<unk>",
-        "<mask>",
-    ])
-
-    tokenizer.save_model("tokenizer")
-
 
 tokenizer = GPT2Tokenizer.from_pretrained("tokenizer")
 
@@ -29,14 +14,6 @@ tokenizer.add_special_tokens({
     "pad_token" : "<pad>",
     "mask_token" : "<mask>"
 })
-
-# Testing the Tokenizer
-#
-# inp = "writeln('Hello World'!);"
-# t = tokenizer.encode(inp)
-# print(t)
-# print(tokenizer.decode(t))
-#
 
 config = GPT2Config(
     vocab_size= tokenizer.vocab_size,
@@ -62,7 +39,8 @@ training_args = TrainingArguments(
     per_gpu_train_batch_size=10,
     save_steps=100,
     save_total_limit=2,
-    prediction_loss_only=True
+    prediction_loss_only=True,
+    remove_unused_columns=False
 )
 
 trainer = Trainer(
