@@ -1,4 +1,4 @@
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/buckdan/GPasT)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/buckdan/GPasT/blob/main/GPasT.ipynb)
 # GPasT
 GPT for Pascal code generation :)
 
@@ -16,7 +16,7 @@ pygithub
 ```
 
 ## Running the model
-You can run it on [Google Colab](https://colab.research.google.com/github/buckdan/GPasT), [HuggingFace](https://huggingface.co/Falcon2006VN/GPasT-small-model) or locally if you preferred.<br>
+You can run it on [Google Colab](https://colab.research.google.com/github/buckdan/GPasT/blob/main/GPasT.ipynb), [HuggingFace](https://huggingface.co/Falcon2006VN/GPasT-small-model) or locally if you preferred.<br>
 
 **For locally you have to run the script in this order** <br>
 (if you don't want to create a new dataset, or train a new tokenizer then you can skip 1,2,3,4.<br>
